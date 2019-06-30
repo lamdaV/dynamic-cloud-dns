@@ -8,11 +8,10 @@
     "ip": "^1.1.5"
   },
   "devDependencies": {
-    "@google-cloud/functions-emulator": "^1.0.0-beta.6"
+    "@google-cloud/functions-framework": "^1.1.0"
   },
   "scripts": {
-    "start": "node_modules/@google-cloud/functions-emulator/bin/functions; node_modules/@google-cloud/functions-emulator/bin/functions start && node_modules/@google-cloud/functions-emulator/bin/functions deploy updateHost --trigger-http && node_modules/@google-cloud/functions-emulator/bin/functions inspect updateHost",
-    "stop": "node_modules/@google-cloud/functions-emulator/bin/functions stop",
+    "start": "functions-framework --target=updateHost --port=8181",
     "deploy": "gcloud functions deploy updateHost --source . --runtime nodejs8 --trigger-http"
   },
   "author": "Simon Rüegg <simon@rueggs.ch>",
