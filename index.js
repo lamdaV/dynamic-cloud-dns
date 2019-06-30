@@ -1,7 +1,7 @@
 /*jshint esversion: 6 */
 
 const ipHelper = require('ip');
-const {DNS} = require('@google-cloud/dns');
+const { DNS } = require('@google-cloud/dns');
 const settings = require('./settings.json');
 
 const dns = new DNS();
@@ -52,7 +52,7 @@ exports.updateHost = function helloGET(req, res) {
         respondWithError(
             400,
             'illegal IPv4',
-            'Could not parse IPv4 address: ' + ipv4,
+            `Could not parse IPv4 address: ${ipv4}`,
             res
         );
         return;
@@ -62,7 +62,7 @@ exports.updateHost = function helloGET(req, res) {
         respondWithError(
             400,
             'illegal IPv6',
-            'Could not parse IPv6 address: ' + ipv6,
+            `Could not parse IPv6 address: ${ipv6}`,
             res
         );
         return;
@@ -100,31 +100,33 @@ function updateHosts(host, ipv4, ipv6) {
 
     var zone = dnsClient.zone(settings.dnsZone);
 
-    return updateRecords(zone, host, ipv4, ipv6).then(() => {
-        return {
-            code: '200',
-            values: {
-                host: host,
-                ipv4: ipv4,
-                ipv6: ipv6
-            }
-        };
-    });
+    return updateRecords(zone, host, ipv4, ipv6)
+        .then((updated) => {
+            return {
+                code: '200',
+                status: updated ? "updated" : "no_change",
+                values: {
+                    host: host,
+                    ipv4: ipv4,
+                    ipv6: ipv6
+                }
+            };
+        });
 }
 
 function getOldRecords(zone, host, ipv4, ipv6) {
     return zone
         .getRecords({ name: host, filterByTypes_: { A: ipv4, AAAA: ipv6 } })
-        .then(data => {
-            var oldRecord = data[0];
-            if (oldRecord.length < 1) {
+        .then((recordsResponse) => {
+            const records = recordsResponse[0];
+            if (records.length < 1) {
                 throw {
                     code: 400,
                     title: 'illegal host',
-                    message: 'Host "' + host + '" not found.'
+                    message: `Host ${host} not found.`
                 };
             }
-            return oldRecord;
+            return records;
         });
 }
 
@@ -136,7 +138,10 @@ function updateRecords(zone, host, ipv4, ipv6) {
         typeof ipv6 != 'undefined'
     ).then(oldRecords => {
         let newRecords = [];
-        if (ipv4) {
+        if (ipv4 && !oldRecords.some((record) => {
+            console.log(`type=${record.type} metadata=${JSON.stringify(record.metadata)} name=${record.metadata.name} data=${record.metadata.rrdatas}`);
+            return record.type === 'A' && record.metadata.name === host && record.metadata.rrdatas.some((dataStr) => dataStr === ipv4);
+        })) {
             newRecords.push(
                 zone.record('A', {
                     name: host,
@@ -145,7 +150,11 @@ function updateRecords(zone, host, ipv4, ipv6) {
                 })
             );
         }
-        if (ipv6) {
+
+        if (ipv6 && !oldRecords.some((record) => {
+            console.log(`type=${record.type} metadata=${JSON.stringify(record.metadata)} name=${record.metadata.name} data=${record.metadata.rrdatas}`);
+            return record.type === 'AAAA' && record.metadata.name === host && record.metadata.rrdatas.some((dataStr) => dataStr === ipv4);
+        })) {
             newRecords.push(
                 zone.record('AAAA', {
                     name: host,
@@ -154,9 +163,15 @@ function updateRecords(zone, host, ipv4, ipv6) {
                 })
             );
         }
-        zone.createChange({
-            add: newRecords,
-            delete: oldRecords
-        });
+
+        if (newRecords.length > 0) {
+            zone.createChange({
+                add: newRecords,
+                delete: oldRecords
+            });
+            return true;
+        } else {
+            return false;
+        }
     });
 }
