@@ -12,7 +12,7 @@
   },
   "scripts": {
     "start": "functions-framework --target=updateHost --port=8181",
-    "deploy": "gcloud functions deploy updateHost --source . --runtime nodejs8 --trigger-http"
+    "deploy": "gcloud functions deploy updateHost --source . --runtime nodejs16 --trigger-http"
   },
   "author": "Simon Rüegg <simon@rueggs.ch>",
   "license": "MIT",
